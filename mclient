@@ -1,0 +1,1 @@
+g++ ClientMain.cpp Client.cpp Utils.cpp Connection.cpp FileProcess.cpp pugixml.cpp porter2_stemmer.cpp -o client -std=c++11 -lcryptopp -lpthread -lz
