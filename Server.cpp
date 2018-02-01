@@ -12,7 +12,7 @@ namespace sse
     int Server::Connect(string &error)
     {
         serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-        if (serverSocket < 0) 
+        if (serverSocket < 0)
         {
             error = "Error in listening socket creation...";
             return -1;
@@ -22,7 +22,7 @@ namespace sse
         sAddress.sin_addr.s_addr = htonl(INADDR_ANY);
         sAddress.sin_port = htons(portNo);
 
-        if(bind(serverSocket, (sockaddr *) &sAddress, sizeof(sAddress)) < 0) 
+        if(bind(serverSocket, (sockaddr *) &sAddress, sizeof(sAddress)) < 0)
         {
             error = "Error in binding socket...";
             return -1;
@@ -70,20 +70,17 @@ namespace sse
                 data2Send = "";
             }
 
-            if(TF.size() > 0)   // forward privacy only
-            {
-                mask = getWiMask(searchKey, cnt);
-                for(int i = KEY_LENGTH; i < TWData.size(); i++)
-                    TWData[i] = TWData[i]^mask[i - KEY_LENGTH];
-            }
-
+            mask = getWiMask(searchKey, cnt);
+            for(int i = KEY_LENGTH; i < TWData.size(); i++)
+                TWData[i] = TWData[i]^mask[i - KEY_LENGTH];
             data2Send += (TWData + GAP_STRING);
+            //cout << "TWData: " << TWData << endl;
         }
 
         mtx.lock();
         if(completed == PARALLEL_NO)
         {
-            data2Send += END_STRING;            
+            data2Send += END_STRING;
             data2Send += GAP_STRING;
         }else
             completed++;
@@ -157,7 +154,7 @@ namespace sse
             TW.erase(TF[address]);
             TF.erase(address);
         }
-        
+
         return 0;
     }
 
@@ -171,19 +168,17 @@ namespace sse
             return -1;
         }
 
-        TW.set_deleted_key(strNull);
-        TF.set_deleted_key(strNull);
-        while (true) 
+        while (true)
         {
             cAddressLength = sizeof(cAddress);
             connSocket = accept(serverSocket, (struct sockaddr *) &cAddress, &cAddressLength);
-            if (connSocket < 0) 
+            if (connSocket < 0)
             {
                 cout << error << endl;
                 return -1;
             }
 
-            while ((nReceived = recv(connSocket, buffer, BUFF_LENGTH, 0)) > 0) 
+            while ((nReceived = recv(connSocket, buffer, BUFF_LENGTH, 0)) > 0)
             {
                 int nCur = 0;
                 //cout << "nReceived: " << nReceived << endl;
