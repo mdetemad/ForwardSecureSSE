@@ -9,3 +9,12 @@ We use crypto++ version 5.6.5 for cryptographic operations.
 
 # Compilation
 These two parts should be compiled separately.  For ease, two executable files mserver and mclinet are provided that would do the compilation.
+
+# Input format
+The client accepts index files of the following format:
+
+File: fileName
+Keyword1 Keyword2 Keyword3 Keyword4 Keyword5 ...
+
+I.e., all searchable unique keywords of each file are stored next to the file name.
+We have also provided a possibility to read all files in a given folder and convert them all into this format.
