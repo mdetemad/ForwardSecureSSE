@@ -1,4 +1,3 @@
-
 #include "Client.h"
 
 using namespace sse;
@@ -7,6 +6,7 @@ int showMenu(Client &client, string &error)
 {
 	char option;
 	string input;
+	int fileNo = 0;
 	do
 	{
 		//Displaying Options for the menu
@@ -20,8 +20,6 @@ int showMenu(Client &client, string &error)
 		cout << "\t\tParalleL) delete" << endl;
 		cout << "\t\tsH)ow index size" << endl;
 		cout << "\t\tE)xit" << endl;
-//		cout << "\t\tSet K)ey" << endl;
-//        cout << "\t\tG)et Key" << endl;
 
 		cout << "Please select an option : ";
 		cin >> option;
@@ -33,52 +31,51 @@ int showMenu(Client &client, string &error)
 				if(client.BuildWikiIndexFile(error) == -1)
                     return -1;
 				break;
-*/				
+*/
 			case 'p':
 			case 'P':
 				if(client.PreProcess(error) == -1)
                     return -1;
-				//if (client.Upload(error) == -1) 
+				//if (client.Upload(error) == -1)
 					//return -1;
 				break;
-				
+
 			case 's':
 			case 'S':
-				//cout << "Enter the keyword to search for: ";
-				//cin >> input;
-				//std::transform(input.begin(), input.end(), input.begin(), ::toupper);
-				//if (client.Search(input, error) == -1) 
-				if (client.SearchBatch(error) == -1) 
+				cout << "Enter the keyword to search for: ";
+				cin >> input;
+				std::transform(input.begin(), input.end(), input.begin(), ::toupper);
+				if (client.Search(input, fileNo, SearchType::regular, error) == -1)
+				//if (client.SearchBatch(error) == -1)
 					return -1;
 				break;
-				
+
 			case 'r':
 			case 'R':
 				//cout << "Enter the keyword to search for: ";
 				//cin >> input;
 				//std::transform(input.begin(), input.end(), input.begin(), ::toupper);
-				//if (ParallelSearch(input, error) == -1) 
-				if (client.ParallelSearchBatch(error) == -1) 
+				//if (ParallelSearch(input, error) == -1)
+				if (client.ParallelSearchBatch(error) == -1)
 					return -1;
 				break;
-				
+
 			case 'h':
 			case 'H':
 				client.ShowIndexSizes(error);
 				break;
 
 			case 'a':
-			case 'A':    
+			case 'A':
 				//cout << "Enter the file name: ";
 				//cin >> input;
 				//if(AddNewFile(input, error) == -1)
-					//return -1;
 				if(client.AddBatch(error) == -1)
 					return -1;
 				break;
 
 			case 'd':
-			case 'D':    
+			case 'D':
 				cout << "Enter the file name: ";
 				cin >> input;
 				std::transform(input.begin(), input.end(), input.begin(), ::toupper);
@@ -87,7 +84,7 @@ int showMenu(Client &client, string &error)
 				break;
 
 			case 'l':
-			case 'L':    
+			case 'L':
 				//cout << "Enter the file name: ";
 				//cin >> input;
 				//std::transform(input.begin(), input.end(), input.begin(), ::toupper);
@@ -97,51 +94,34 @@ int showMenu(Client &client, string &error)
 				break;
 
 			case 'g':
-			case 'G':    
+			case 'G':
 				client.GetKey();
 				break;
 
 			case 'k':
-			case 'K':    
+			case 'K':
 				client.SetKey();
 				break;
 		}
 	}while (option != 'E' && option != 'e');
-	
+
 	client.ExitServer(error);
 	return 0;
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-    if(argc != 2)
-	{
-		cout << "Usage: " << argv[0] << " Forward | Backward" << endl;
-        return -1;
-	}
-    
 	int serverPort = 2324;
-	const string serverAddr("52.26.180.195");
-    string error, forback(argv[1]);
+	const string serverAddr("localhost");
+    string error;
 	Client client(serverPort, serverAddr);
-    if(!forback.compare("Forward") || !forback.compare("forward"))
-        client.SetType(SSEType::forward);
-    else if(!forback.compare("Backward") || !forback.compare("backward"))
-        client.SetType(SSEType::backward);
-    else
-	{
-		cout << "Usage: " << argv[0] << " Forward | Backward" << endl;
-        return -1;
-	}
-        
-
-    if (client.Connect(error) == -1) 
+    if (client.Connect(error) == -1)
     {
         cout << error << endl;
         return -1;
     }
 
-    if (showMenu(client, error) == -1) 
+    if (showMenu(client, error) == -1)
     {
         cout << error << endl;
         return -1;
