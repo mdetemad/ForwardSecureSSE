@@ -14,6 +14,7 @@ These two parts should be compiled separately.  For ease, two executable files m
 The client accepts index files of the following format:
 
 File: fileName
+
 Keyword1 Keyword2 Keyword3 Keyword4 Keyword5 ...
 
 I.e., all searchable unique keywords of each file are stored next to the file name.
