@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <ctime>
 #include <stdio.h>
@@ -24,9 +25,8 @@
 #include "cryptopp/filters.h"
 #include "cryptopp/hex.h"
 #include <cryptopp/osrng.h>
-#include <sparsehash/sparse_hash_map>
 #include <utility>
-#include <unordered_map>
+#include "pugixml.hpp"
 
 #define KEY_LENGTH 16
 #define BUFF_LENGTH 8192
@@ -51,8 +51,8 @@
 #define INDEX_FILE_SERVER "index.txt"
 #define INVINDEX_FILE_SERVER "invIndex.txt"
 
-using namespace std; 
-using namespace CryptoPP; 
+using namespace std;
+using namespace CryptoPP;
 
 namespace sse
 {
@@ -63,12 +63,11 @@ namespace sse
         int noFiles;
         int noSearch;
     };
-    
-    //typedef std::map<string, string> SSEMap;
-    typedef google::sparse_hash_map<string, string> SSEMap;
-    typedef std::map<string, int> MFMap;
-    typedef std::map<string, StructMW> MWMap;
-    
+
+    typedef std::unordered_map<string, string> SSEMap;
+    typedef std::unordered_map<string, int> MFMap;
+    typedef std::unordered_map<string, StructMW> MWMap;
+
     string getMasterKey(int keyLength);
     string getFjKey(string key, string Fj);
     string getWiKey(string key, string Wi, int searchNo);
