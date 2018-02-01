@@ -2,12 +2,12 @@
  Forward- and Backeard-private Searchable Symmetric Encryption
  Copyright (C) 2016 Mohammad Etemad
 
- This is a free software: you can redistribute/modify it 
+ This is a free software: you can redistribute/modify it
  under the GNU Affero General Public License.
 
  This is distributed freely hoping to help further improvements in the
  searchable encryption area, as is and WITHOUT ANY WARRANTY.
- See the GNU Affero General Public License for more details. 
+ See the GNU Affero General Public License for more details.
 */
 
 
@@ -18,18 +18,9 @@ namespace sse
 	Client::Client(int serverPort, const string serverAddr): connIndex(serverPort, serverAddr)
 	{
 	    masterKey = getMasterKey(AES::DEFAULT_KEYLENGTH);
-        minNoise = 1;
-        maxNoise = 100;
         string strNull("NULL");
-        TW.set_deleted_key(strNull);
-        TF.set_deleted_key(strNull);
     }
-	
-    void Client::SetType(SSEType isseType)
-    {
-        sseType = isseType;
-    }
-    
+
     int Client::Connect(string &error)
 	{
 	    return connIndex.Connect(error);
@@ -92,54 +83,8 @@ namespace sse
                 maxWord = ptr->first;
             }
         }
-        
+
         cout << maxWord << ": " << nMax << endl;
-    }
-
-    // Add some noise in backward private scheme.
-	int Client::AddNoise(string &error)
-	{
-        int noiseNo = 0, fileNameLength = 0;
-		string data2Send;
-        srand(static_cast <unsigned int> (time(0)));
-        for(MWMap::const_iterator ptr = MW.begin(); ptr != MW.end(); ptr++)
-        {
-            noiseNo = rand() % maxNoise + minNoise;
-            //cout << "ptr->second.noFiles: " << ptr->second.noFiles << "\tLen: " << fileNameLength << endl;
-            for(int i = ptr->second.noFiles ; i < ptr->second.noFiles + noiseNo ; i++)
-            {
-                string WiKey = getWiKey(masterKey, ptr->first, ptr->second.noSearch);
-                string WiAddress = getWiAddress(WiKey, i);
-                string WiMask = getWiMask(WiKey, i);
-
-                // Mask the file name.
-                string WiVal = "000";
-                fileNameLength = rand() % 5;
-                for(int j = 0; j < fileNameLength ; j++)
-                    WiVal += "0";
-                for(int j = 0; j < WiVal.size(); j++)
-                    WiVal[j] = WiVal[j]^WiMask[j];
-
-                // Upload the data
-                if(data2Send.size() + WiAddress.size() + WiVal.size() + 2*sizeof(GAP_STRING) > BUFF_LENGTH)
-                {
-                    if (connIndex.SendData(data2Send, error) == -1) 
-                    {
-                        error = "Error in uploading TW data...";
-                        return -1;
-                    }
-
-                    data2Send = "";
-                }
-
-                data2Send += "TW";
-                data2Send += (GAP_STRING + WiAddress + WiVal + GAP_STRING);
-            }
-            
-            MW[ptr->first].noFiles += noiseNo;
-        }
-
-        return 0;
     }
 
     int Client::AddKeyword(string FjKey, string fileName, vector<wordBox> wb, int &totalSent)
@@ -151,13 +96,11 @@ namespace sse
         data2SendTW += GAP_STRING;
         data2SendTF += GAP_STRING;
         data2SendTF += "TF";
-        data2SendTF += GAP_STRING;        
+        data2SendTF += GAP_STRING;
         for (std::vector<wordBox>::iterator it = wb.begin(); it != wb.end(); ++it)
         {
             //cout << it->word << "\t" << it->noFiles << endl;
-            string FjAddress = "";
-            if(sseType == SSEType::forward)
-                FjAddress = getFjAddress(FjKey, it->noWords);
+            string FjAddress = getFjAddress(FjKey, it->noWords);
             string WiKey = getWiKey(masterKey, it->word, 0);
             string WiAddress = getWiAddress(WiKey, it->noFiles);
             string WiMask = getWiMask(WiKey, it->noFiles);
@@ -168,30 +111,26 @@ namespace sse
                 WiValMasked[i] = WiValMasked[i]^WiMask[i];
             string WiVal = FjAddress + WiValMasked;
 
-            if(sseType == SSEType::forward)
+            if(data2SendTF.size() + FjAddress.size() + WiAddress.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
             {
-                if(data2SendTF.size() + FjAddress.size() + WiAddress.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
+                mtx.lock();
+                if (connIndex.SendData(data2SendTF, error) == -1)
                 {
-                    mtx.lock();
-                    if (connIndex.SendData(data2SendTF, error) == -1) 
-                    {
-                        error = "Error in uploading TF data...";
-                        return -1;
-                    }
-
-                    mtx.unlock();
-                    data2SendTF = "TF";
-                    data2SendTF += GAP_STRING;
+                    error = "Error in uploading TF data...";
+                    return -1;
                 }
 
-                data2SendTF += (FjAddress + WiAddress + GAP_STRING);
-                totalSent += (FjAddress.size() + WiAddress.size());
+                mtx.unlock();
+                data2SendTF = "TF";
+                data2SendTF += GAP_STRING;
             }
 
+            data2SendTF += (FjAddress + WiAddress + GAP_STRING);
+            totalSent += (FjAddress.size() + WiAddress.size());
             if(data2SendTW.size() + WiAddress.size() + WiVal.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
             {
                 mtx.lock();
-                if (connIndex.SendData(data2SendTW, error) == -1) 
+                if (connIndex.SendData(data2SendTW, error) == -1)
                 {
                     error = "Error in uploading TF data...";
                     return -1;
@@ -206,10 +145,10 @@ namespace sse
             totalSent += (WiAddress.size() + WiVal.size());
         }
 
-        if(sseType == SSEType::forward && data2SendTF.size() > (sizeof(GAP_STRING) + 2))
+        if(data2SendTF.size() > (sizeof(GAP_STRING) + 2))
         {
             mtx.lock();
-            if (connIndex.SendData(data2SendTF, error) == -1) 
+            if (connIndex.SendData(data2SendTF, error) == -1)
             {
                 error = "Error in uploading TF data...";
                 return -1;
@@ -220,7 +159,7 @@ namespace sse
         if(data2SendTW.size() > (sizeof(GAP_STRING) + 2))
         {
             mtx.lock();
-            if (connIndex.SendData(data2SendTW, error) == -1) 
+            if (connIndex.SendData(data2SendTW, error) == -1)
             {
                 error = "Error in uploading TW data...";
                 return -1;
@@ -248,7 +187,7 @@ namespace sse
                 // Generate the file key.
                 if(fileOK)
                     FjKey = getFjKey(masterKey, fileName);
-                if(processed == 500000)
+                if(processed == 5000)
                     return;
                 processed++;
                 if(processed % 10000 == 0)
@@ -291,11 +230,9 @@ namespace sse
             }
         }
     }
-    
+
     int Client::PreProcess(string &error)
 	{
-//        ComputeMax();
-//        return 0;
         int nPairs = 0;
         auto sTime = chrono::system_clock::now();
         ReadFromIndex(nPairs);
@@ -327,36 +264,33 @@ namespace sse
         long totalSent = 0;
 		string data2Send("BUILD");
 		data2Send += GAP_STRING;
-        
-        if(sseType == SSEType::forward)
+
+        // Start with TF
+        data2Send += "TF";
+        data2Send += GAP_STRING;
+        for(SSEMap::const_iterator ptr = TF.begin(); ptr != TF.end(); ptr++)
         {
-            // Start with TF
-            data2Send += "TF";
-            data2Send += GAP_STRING;
-            for(SSEMap::const_iterator ptr = TF.begin(); ptr != TF.end(); ptr++)
+            if(data2Send.size() + ptr->first.size() + ptr->second.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
             {
-                if(data2Send.size() + ptr->first.size() + ptr->second.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
-                {
-                    if (connIndex.SendData(data2Send, error) == -1) 
-                    {
-                        error = "Error in uploading TF data...";
-                        return -1;
-                    }
-
-                    data2Send = "";
-                }
-
-                data2Send += (ptr->first + ptr->second + GAP_STRING);
-                totalSent += ptr->first.size() + ptr->second.size();
-            }
-
-            if(data2Send.size() > 0)
-            {
-                if (connIndex.SendData(data2Send, error) == -1) 
+                if (connIndex.SendData(data2Send, error) == -1)
                 {
                     error = "Error in uploading TF data...";
                     return -1;
                 }
+
+                data2Send = "";
+            }
+
+            data2Send += (ptr->first + ptr->second + GAP_STRING);
+            totalSent += ptr->first.size() + ptr->second.size();
+        }
+
+        if(data2Send.size() > 0)
+        {
+            if (connIndex.SendData(data2Send, error) == -1)
+            {
+                error = "Error in uploading TF data...";
+                return -1;
             }
         }
 
@@ -367,7 +301,7 @@ namespace sse
 		{
 			if(data2Send.size() + ptr->first.size() + ptr->second.size() + sizeof(GAP_STRING) > BUFF_LENGTH)
 			{
-				if (connIndex.SendData(data2Send, error) == -1) 
+				if (connIndex.SendData(data2Send, error) == -1)
 				{
 					error = "Error in uploading TW data...";
 					return -1;
@@ -375,14 +309,14 @@ namespace sse
 
 				data2Send = "";
 			}
-			
+
 			data2Send += (ptr->first + ptr->second + GAP_STRING);
 			totalSent += ptr->first.size() + ptr->second.size();
 		}
-			
+
 		if(data2Send.size() > 0)
 		{
-			if (connIndex.SendData(data2Send, error) == -1) 
+			if (connIndex.SendData(data2Send, error) == -1)
 			{
 				error = "Error in uploading TW data...";
 				return -1;
@@ -414,7 +348,7 @@ namespace sse
 		data2Send += to_string(MW[keyword].noFiles);
 		data2Send += GAP_STRING;
         auto sTime = chrono::system_clock::now();
-		if (connIndex.SendData(data2Send, error) == -1) 
+		if (connIndex.SendData(data2Send, error) == -1)
 		{
 			error = "Search request is not sent...";
 			return -1;
@@ -424,15 +358,16 @@ namespace sse
 		MW[keyword].noSearch++;
 		string mask, WiNewKey = getWiKey(masterKey, keyword, MW[keyword].noSearch);
 		int nReceived = 0, nCur = 0, nRead = 0, nFile = 0;
-        int keyLength = (sseType == SSEType::forward) ? KEY_LENGTH : 0;
+        int keyLength = KEY_LENGTH;
 		char readTill[3*KEY_LENGTH], fName[KEY_LENGTH];
 		bool bEnd = false;
         fileNo = 0;
         vector<string> recPairs;
-		while (!bEnd && (nReceived = recv(connIndex.socketDescriptor, buffer, BUFF_LENGTH, 0)) > 0) 
+		while (!bEnd && (nReceived = recv(connIndex.socketDescriptor, buffer, BUFF_LENGTH, 0)) > 0)
 		{
 			nCur = 0;
-			//cout << "nReceived: " << nReceived << endl;
+			cout << "nReceived: " << nReceived << endl;
+			//cout << "buffer: " << buffer << endl;
 			while(nCur < nReceived)
 			{
 				readTill[nRead++] = buffer[nCur++];
@@ -441,17 +376,14 @@ namespace sse
 				{
 					nRead = nRead - 5;
 					readTill[nRead] = '\0';
+                    //cout << "nRead: " << nRead << "readTill: " << readTill << endl;
 					if(!strcmp(readTill, END_STRING))
 						bEnd = true;
 					else if(strcmp(readTill, DEL_STRING))
                     {
-                        if(sseType == SSEType::backward)
-                        {
-                            mask = getWiMask(WiOldKey, nFile++);
-                            for(int i = 0; i < nRead; i++)
-                                readTill[i] = readTill[i]^mask[i];
-                        }
-
+                        //mask = getWiMask(WiOldKey, nFile++);
+                        //for(int i = 0; i < nRead; i++)
+                            //readTill[i] = readTill[i]^mask[i];
                         string strData = "";
                         char2Str(readTill, strData, nRead);
                         recPairs.push_back(strData);
@@ -462,26 +394,21 @@ namespace sse
             }
         }
 
-        int cnt = 0;
+        cout << endl << endl;
         auto eTime = chrono::system_clock::now();
 		writeSearchTimeClient(recPairs.size(), MF.size(), CHRONO(sTime, eTime), opType);
         for (vector<string>::iterator it = recPairs.begin(); it != recPairs.end(); ++it)
         {
             str2Char(*it, readTill);
             nRead = (*it).size();
-            //cout << "nRead: " << nRead << "readTill: " << readTill << endl;
+            int cnt = 0;
             for(cnt = 0; cnt < nRead - keyLength; cnt++)
                 fName[cnt] = readTill[cnt + keyLength];
             fName[cnt] = '\0';
-            cout << fName << "\t";
-
-            // If the entry is not a noise. Noise has all-zero file name.
-            if(fName[0] != '0' && fName[1] != '0' && fName[2] != '0')
-            {
-                // If the file is deleted already
-                if(MF.find(fName) == MF.end())
-                    continue;
-            }                            
+            cout << fName << "\n";
+            // If the file is deleted already
+            if(MF.find(fName) == MF.end())
+                continue;
 
             // Now, prepare the received data with the new key.
             string WiNewAddress = getWiAddress(WiNewKey, fileNo);
@@ -493,11 +420,8 @@ namespace sse
             TW[WiNewAddress] = WiVal;
             nRead = 0;
             fileNo++;
-            if(sseType == SSEType::forward)
-            {
-                char2Str(readTill, FjAddress, KEY_LENGTH);
-                TF[FjAddress] = WiNewAddress;
-            }
+            char2Str(readTill, FjAddress, KEY_LENGTH);
+            TF[FjAddress] = WiNewAddress;
         }
 
 		MW[keyword].noFiles = fileNo;
@@ -507,7 +431,7 @@ namespace sse
 
 	int Client::SearchBatch(string &error)
 	{
-		string line; 
+		string line;
         int fileNo = 0;
 		ifstream file(SEARCH_FILE_INPUT, std::ifstream::in);
 		while (getline(file, line))
@@ -521,13 +445,13 @@ namespace sse
                     return -1;
             }
 		}
-		
+
 		return 0;
 	}
 
 	int Client::ParallelSearchBatch(string &error)
 	{
-		string line; 
+		string line;
         int fileNo = 0;
 		ifstream file(SEARCH_FILE_INPUT, std::ifstream::in);
 		while (getline(file, line))
@@ -541,7 +465,7 @@ namespace sse
                     return -1;
             }
 		}
-		
+
 		return 0;
 	}
 
@@ -550,7 +474,7 @@ namespace sse
 	{
 		string data2Send("SHOW");
 		data2Send += GAP_STRING;
-		if (connIndex.SendData(data2Send, error) == -1) 
+		if (connIndex.SendData(data2Send, error) == -1)
 		{
 			error = "Error in sending SHOW message to the server...";
 			return -1;
@@ -564,7 +488,7 @@ namespace sse
 	{
 		string data2Send("EXIT");
 		data2Send += GAP_STRING;
-		if (connIndex.SendData(data2Send, error) == -1) 
+		if (connIndex.SendData(data2Send, error) == -1)
 		{
 			error = "Error in sending EXIT message to the server...";
 			return -1;
@@ -580,19 +504,16 @@ namespace sse
 			cout << "The file '" << fileName << "' does not exists." << endl;;
 			return 0;
 		}
-		
+
         // Delete the corresponding entries from the indexes if it is for forward privacy.
-        if(sseType == SSEType::forward)
+        string FiKey = getFjKey(masterKey, fileName);
+        string data2Send;
+        data2Send = bParallel ? "PDELETE" : "DELETE" ;
+        data2Send += (GAP_STRING + FiKey + to_string(MF[fileName]) + GAP_STRING);
+        if (connIndex.SendData(data2Send, error) == -1)
         {
-            string FiKey = getFjKey(masterKey, fileName);
-            string data2Send;
-            data2Send = bParallel ? "PDELETE" : "DELETE" ;
-            data2Send += (GAP_STRING + FiKey + to_string(MF[fileName]) + GAP_STRING);
-            if (connIndex.SendData(data2Send, error) == -1) 
-            {
-                error = "Error in sending EXIT message to the server...";
-                return -1;
-            }
+            error = "Error in sending EXIT message to the server...";
+            return -1;
         }
 
 		MF.erase(fileName);
@@ -602,7 +523,7 @@ namespace sse
 	int Client::DeleteBatch(string &error)
 	{
 		ifstream file(DELETE_FILE_INPUT, std::ifstream::in);
-		string line; 
+		string line;
 		while (getline(file, line))
 		{
             cout << "Deleting: " << line << endl;
@@ -610,7 +531,7 @@ namespace sse
 			if(DeleteFile(line, true, error) == -1)
 				return -1;
 		}
-		
+
 		return 0;
 	}
 
@@ -627,16 +548,16 @@ namespace sse
 		FileReading FR;
 		FR.ReadFile("", fileName);
         auto sTime = chrono::system_clock::now();
-		FR.BuildIndex(masterKey, TW, TF, MW, MF, sseType);
+		FR.BuildIndex(masterKey, TW, TF, MW, MF);
         auto eTime = chrono::system_clock::now();
 		writeAddTimeClient(TF.size(), MF.size(), 0);//double(eTime - sTime));
-		if (Upload(error) == -1) 
+		if (Upload(error) == -1)
 			return -1;
 		return 0;
 	}
 
 	int Client::AddBatch(string &error)
-	{    
+	{
 		FileReading FR;
 		int sTime = 0, eTime = 0;
 		DIR *directoryHandle = opendir("ToBeAdded");
@@ -649,10 +570,10 @@ namespace sse
 					FR.ReadFile("ToBeAdded", entry->d_name);
 
 				sTime = clock();
-				FR.BuildIndex(masterKey, TW, TF, MW, MF, sseType);
+				FR.BuildIndex(masterKey, TW, TF, MW, MF);
 				eTime = clock();
 				writeAddTimeClient(TF.size(), MF.size(), double(eTime - sTime));
-				if (Upload(error) == -1) 
+				if (Upload(error) == -1)
 					return -1;
 				//go to next entry
 				entry = readdir(directoryHandle);
@@ -660,7 +581,7 @@ namespace sse
 
 			closedir(directoryHandle);
 		}
-		
+
 		return 0;
 	}
 
