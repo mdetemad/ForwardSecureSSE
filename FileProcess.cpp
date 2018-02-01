@@ -1,6 +1,7 @@
 #include "Utils.h"
 #include "dirent.h"
 #include "FileProcess.h"
+#include "porter2_stemmer.h"
 
 namespace sse
 {
@@ -14,7 +15,7 @@ namespace sse
         if(path.size() > 0)
             fullName = path + "/" + fileName;
         ifstream file(fullName, std::ifstream::in);
-        string line, word; 
+        string line, word;
         while (getline(file, line))
         {
             ProcessLine(line);
@@ -24,12 +25,12 @@ namespace sse
                 std::transform(word.begin(), word.end(), word.begin(), ::toupper);
                 std::transform(fileName.begin(), fileName.end(), fileName.begin(), ::toupper);
                 if(word.size() > 5 && word.size() < 10)
-                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end()) 
+                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end())
                         file2words[fileName].push_back(word);
             }
         }
     }
-    
+
     // Process a line to exclude extra characters.
     void FileReading::ProcessLine(string &line)
     {
@@ -55,7 +56,7 @@ namespace sse
         std::replace(line.begin(), line.end(), '-', ' ');
         std::replace(line.begin(), line.end(), '_', ' ');
         std::replace(line.begin(), line.end(), '*', ' ');
-        std::replace(line.begin(), line.end(), '@', ' ');   
+        std::replace(line.begin(), line.end(), '@', ' ');
         std::replace(line.begin(), line.end(), ',', ' ');
         std::replace(line.begin(), line.end(), '=', ' ');
         std::replace(line.begin(), line.end(), ';', ' ');
@@ -75,14 +76,14 @@ namespace sse
         std::replace(line.begin(), line.end(), '#', ' ');
         std::replace(line.begin(), line.end(), '\t', ' ');
         std::replace(line.begin(), line.end(), '&', ' ');
-        
+
         while(line.find("  ") != string::npos)
         {
             string::iterator new_end = std::unique(line.begin(), line.end(), BothAreSpaces(' '));
-            line.erase(new_end, line.end());               
+            line.erase(new_end, line.end());
         }
     }
-    
+
     void FileReading::ReadFiles(string path)
     {
         DIR *directoryHandle = opendir(path.c_str());
@@ -102,11 +103,11 @@ namespace sse
                 //go to next entry
                 entry = readdir(directoryHandle);
             }
-            
+
             closedir(directoryHandle);
         }
     }
-    
+
     bool FileReading::IsEnglish(string word)
     {
         for(int i = 0; i < word.size(); i++)
@@ -114,7 +115,7 @@ namespace sse
                 return false;
         return true;
     }
-    
+
     int FileReading::ReadWikiArchives(string &error)
     {
         int fileID = 100;
@@ -131,7 +132,7 @@ namespace sse
                     cout << "Reading " << entry->d_name << endl;
                     strPath += entry->d_name;
                     pugi::xml_document doc;
-                    xml_parse_result result = doc.load_file(strPath.c_str());
+                    pugi::xml_parse_result result = doc.load_file(strPath.c_str());
                     if(!result)
                     {
                         error = "XML file '";
@@ -146,8 +147,8 @@ namespace sse
                         //return -1;
                     }else
                     {
-                        xml_node rootNode = doc.child("mediawiki");
-                        for(xml_node page : rootNode.children("page"))
+                        pugi::xml_node rootNode = doc.child("mediawiki");
+                        for(pugi::xml_node page : rootNode.children("page"))
                         {
                             fileText = page.child("revision").child("text").child_value();
                             if(fileText.length() < 200)
@@ -166,7 +167,7 @@ namespace sse
                                 if(word.size() >= 5 && word.size() <= 10)
                                 {
                                     std::transform(word.begin(), word.end(), word.begin(), ::toupper);
-                                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end()) 
+                                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end())
                                         file2words[fileName].push_back(word);
                                 }
                             }
@@ -177,7 +178,7 @@ namespace sse
                 //go to next entry
                 entry = readdir(directoryHandle);
             }
-            
+
             closedir(directoryHandle);
         }
 
@@ -187,7 +188,7 @@ namespace sse
     int FileReading::ReadWikiArchive(string &error)
     {
         pugi::xml_document doc;
-        xml_parse_result result = doc.load_file("xaa.xml");
+        pugi::xml_parse_result result = doc.load_file("xaa.xml");
         if(!result)
         {
             error = "XML file 'xaa.xml' parsed with error: ";
@@ -201,11 +202,11 @@ namespace sse
 
         int fileID = 100;
         string word = "", fileName = "", fileText = "";
-        xml_node rootNode = doc.child("mediawiki");
+        pugi::xml_node rootNode = doc.child("mediawiki");
         //xml_node page = rootNode.child("page");
         //xml_node paget = page.child("text");
         //cout << "page text: " << paget.name() << endl;
-        for(xml_node page : rootNode.children("page"))
+        for(pugi::xml_node page : rootNode.children("page"))
         {
             fileName = to_string(fileID++);
             fileText = page.child("revision").child("text").child_value();
@@ -223,7 +224,7 @@ namespace sse
                 if(word.size() >= 5 && word.size() <= 10)
                 {
                     std::transform(word.begin(), word.end(), word.begin(), ::toupper);
-                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end()) 
+                    if(std::find(file2words[fileName].begin(), file2words[fileName].end(), word) == file2words[fileName].end())
                         file2words[fileName].push_back(word);
                 }
             }
@@ -232,14 +233,13 @@ namespace sse
         return 0;
     }
 
-    void FileReading::AddKeyword(string masterKey, string FjKey, string keywords, string fileName, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType)
+    void FileReading::AddKeyword(string masterKey, string FjKey, string keywords, string fileName, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF)
     {
         string word = "";
         stringstream ss(keywords);
         int noFiles = 0, noWords = 0;
         while (getline(ss, word, ' '))
         {
-            string FjAddress = "";
             mtx.lock();
             MW[word].noFiles++;
             MF[fileName]++;
@@ -247,8 +247,7 @@ namespace sse
             noWords = MF[fileName];
             mtx.unlock();
 
-            if(sseType == SSEType::forward)
-                FjAddress = getFjAddress(FjKey, noWords);
+            string FjAddress = getFjAddress(FjKey, noWords);
             string WiKey = getWiKey(masterKey, word, 0);
             string WiAddress = getWiAddress(WiKey, noFiles);
             string WiMask = getWiMask(WiKey, noFiles);
@@ -261,14 +260,13 @@ namespace sse
 
             // Add the values into maps
             mtx.lock();
-            if(sseType == SSEType::forward)
-                TF[FjAddress] = WiAddress;
+            TF[FjAddress] = WiAddress;
             TW[WiAddress] = WiVal;
             mtx.unlock();
         }
     }
 
-    void FileReading::ReadIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType)
+    void FileReading::ReadIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF)
     {
         int processed = 0;
         bool fileOK = false;
@@ -298,9 +296,7 @@ namespace sse
                 {
                     if(fileOK)
                     {
-                        string FjAddress = "";
-                        if(sseType == SSEType::forward)
-                            FjAddress = getFjAddress(FjKey, MF[fileName]);
+                        string FjAddress = getFjAddress(FjKey, MF[fileName]);
                         string WiKey = getWiKey(masterKey, word, MW[word].noSearch);
                         string WiAddress = getWiAddress(WiKey, MW[word].noFiles);
                         string WiMask = getWiMask(WiKey, MW[word].noFiles);
@@ -310,10 +306,9 @@ namespace sse
                         for(int i = 0; i < WiValMasked.size(); i++)
                             WiValMasked[i] = WiValMasked[i]^WiMask[i];
                         string WiVal = FjAddress + WiValMasked;
-                        
+
                         // Add the values into maps
-                        if(sseType == SSEType::forward)
-                            TF[FjAddress] = WiAddress;
+                        TF[FjAddress] = WiAddress;
                         TW[WiAddress] = WiVal;
                         MW[word].noFiles++;
                         MF[fileName]++;
@@ -322,7 +317,7 @@ namespace sse
             }
         }
     }
-    
+
     void FileReading::ConvertIndex2Sophos()
     {
         int processed = 0;
@@ -341,8 +336,8 @@ namespace sse
                 }else
                 {
                     std::transform(word.begin(), word.end(), word.begin(), ::toupper);
-                    //if(std::find(file2words[word].begin(), file2words[word].end(), fileName) == file2words[word].end()) 
-                    file2words[word].push_back(fileName);                    
+                    //if(std::find(file2words[word].begin(), file2words[word].end(), fileName) == file2words[word].end())
+                    file2words[word].push_back(fileName);
                 }
             }
 
@@ -352,7 +347,7 @@ namespace sse
             {
                 if(bFirst)
                     WriteIndexSophos(processed);
-                bFirst = !bFirst;   
+                bFirst = !bFirst;
             }
         }
 
@@ -367,7 +362,7 @@ namespace sse
         ofstream oFile;
         oFile.open (fileName, ios::out);
         oFile << "{" << endl;
-        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++) 
+        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++)
         {
             oFile << "\"" << ptr->first << "\":[" ;
             vector<string>::const_iterator eptr = ptr->second.begin();
@@ -379,13 +374,13 @@ namespace sse
         }
 
         oFile << "}" << endl;
-        oFile.close();        
+        oFile.close();
     }
 
-    void FileReading::BuildIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType)
+    void FileReading::BuildIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF)
     {
         int processed = 0;
-        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++) 
+        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++)
         {
             processed++;
             if(processed % 1000 == 0)
@@ -417,9 +412,9 @@ namespace sse
                     for(int i = 0; i < WiValMasked.size(); i++)
                         WiValMasked[i] = WiValMasked[i]^WiMask[i];
                     string WiVal = FjAddress + WiValMasked;
-                    
+
                     // Add the values into maps
-                    
+
                     if(TF.find(FjAddress) == TF.end())
                         TF[FjAddress] = WiAddress;
                     else
@@ -428,40 +423,40 @@ namespace sse
                         TW[WiAddress] = WiVal;
                     else
                         cout << "Duplicate: " << ptr->first << " " << *eptr << endl;
-                    
+
                     MW[*eptr].noFiles++;
                     wordNo++;
                 }
-                
+
                 MF[ptr->first] = wordNo;
             }
         }
-        
+
         file2words.clear();
     }
-    
+
     void FileReading::WriteIndex()
     {
         ofstream oFile;
         oFile.open (INDEX_FILE_SERVER, ios::out);
-        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++) 
+        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++)
         {
             oFile << "File: " << ptr->first << endl;
             for(vector<string>::const_iterator eptr = ptr->second.begin(); eptr != ptr->second.end(); eptr++)
                 oFile << *eptr << " ";
             oFile << endl;
         }
-        
-        oFile.close();        
+
+        oFile.close();
     }
 
     void FileReading::BuildInvertedIndex()
     {
-        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++) 
+        for(map<string, vector<string> >::const_iterator ptr=file2words.begin(); ptr != file2words.end(); ptr++)
         {
             for(vector<string>::const_iterator eptr = ptr->second.begin(); eptr != ptr->second.end(); eptr++)
             {
-                if(std::find(invIndex[*eptr].begin(), invIndex[*eptr].end(), ptr->first) == invIndex[*eptr].end()) 
+                if(std::find(invIndex[*eptr].begin(), invIndex[*eptr].end(), ptr->first) == invIndex[*eptr].end())
                     invIndex[*eptr].push_back(ptr->first);
             }
         }
@@ -471,15 +466,15 @@ namespace sse
     {
         ofstream oFile;
         oFile.open (INVINDEX_FILE_SERVER, ios::out);
-        for(map<string, vector<string> >::const_iterator ptr=invIndex.begin(); ptr != invIndex.end(); ptr++) 
+        for(map<string, vector<string> >::const_iterator ptr=invIndex.begin(); ptr != invIndex.end(); ptr++)
         {
             oFile << "Keyword: " << ptr->first << endl;
             for(vector<string>::const_iterator eptr = ptr->second.begin(); eptr != ptr->second.end(); eptr++)
                 oFile << *eptr << " ";
             oFile << endl;
         }
-        
-        oFile.close();        
+
+        oFile.close();
     }
 
 }//namespace
