@@ -12,7 +12,7 @@ namespace sse
                 return r == c && l == c;
         }
     };
-    
+
     class FileReading
     {
         private:
@@ -20,12 +20,12 @@ namespace sse
             std::map<string, std::vector<string> > file2words, invIndex;
             void ProcessLine(string &line);
             bool IsEnglish(string word);
-            void AddKeyword(string masterKey, string FjKey, string keywords, string fileName, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType);
-        
-        public:        
+            void AddKeyword(string masterKey, string FjKey, string keywords, string fileName, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF);
+
+        public:
             FileReading();
-            void ReadIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType);
-            void BuildIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF, SSEType sseType);
+            void ReadIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF);
+            void BuildIndex(string masterKey, SSEMap &TW, SSEMap &TF, MWMap &MW, MFMap &MF);
             void ReadFile(string path, string fileName);
             int  ReadWikiArchives(string &error);
             int  ReadWikiArchive(string &error);
